@@ -3,11 +3,11 @@
 
 #include "request.h"
 #include "response.h"
-
+#include "handlers.h"
 
 void webc_init(void);
 void webc_start(const int port);
 
-void webc_route(const char *path, const WebcRequest *req, WebcResponse *res);
+void webc_route(WebcMethod method, const char *path, handler func);
 
 #endif // __WEBC_H_
