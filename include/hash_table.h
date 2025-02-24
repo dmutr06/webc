@@ -40,23 +40,23 @@ static inline char *__ht_get_internal(
     size_t idx = __ht_hash(key);
 
     for (size_t i = 0; i < cap; ++i) {
-        char *cur = buckets + ((i + idx) & (cap - 1)) * bucket_size;
-        __HtBucketState *state =  (__HtBucketState *) (cur + state_offset);
-        char *val = cur + val_offset;
-        char *cur_key = (char *) *(char **) cur;
+        char *cur_ = buckets + ((i + idx) & (cap - 1)) * bucket_size;
+        __HtBucketState *state =  (__HtBucketState *) (cur_ + state_offset);
+        char *val = cur_ + val_offset;
+        char *cur__key = (char *) *(char **) cur_;
 
         switch (*state) {
             case HT_BUCKET_STATE_EMPTY: {
                 break;
             }
             case HT_BUCKET_STATE_OCCUPIED: {
-                if (strcmp(cur_key, key) == 0)
+                if (strcmp(cur__key, key) == 0)
                     return val;
 
                 break;
             }
             case HT_BUCKET_STATE_DELETED: {
-                if (strcmp(cur_key, key) == 0)
+                if (strcmp(cur__key, key) == 0)
                     return NULL;
 
                 break;
@@ -93,19 +93,19 @@ struct { \
 #define __ht_unsafe_insert(ht, key_, val_) do { \
     size_t idx = __ht_hash(key_); \
     for (size_t i = 0; i < (ht)->cap; ++i) { \
-        typeof(((ht)->buckets)) cur = (ht)->buckets + ((i + idx) & ((ht)->cap - 1)); \
-        if (cur->state == HT_BUCKET_STATE_DELETED || cur->state == HT_BUCKET_STATE_EMPTY) { \
-            if (cur->state == HT_BUCKET_STATE_DELETED) free(cur->key); \
-            cur->val = val_; \
-            cur->key = malloc(strlen(key_) + 1); \
-            strcpy(cur->key, key_); \
+        typeof(((ht)->buckets)) cur_ = (ht)->buckets + ((i + idx) & ((ht)->cap - 1)); \
+        if (cur_->state == HT_BUCKET_STATE_DELETED || cur_->state == HT_BUCKET_STATE_EMPTY) { \
+            if (cur_->state == HT_BUCKET_STATE_DELETED) free(cur_->key); \
+            cur_->val = val_; \
+            cur_->key = malloc(strlen(key_) + 1); \
+            strcpy(cur_->key, key_); \
             (ht)->size += 1; \
-            cur->state = HT_BUCKET_STATE_OCCUPIED; \
+            cur_->state = HT_BUCKET_STATE_OCCUPIED; \
             break; \
             \
          } \
-        if (strcmp(cur->key, key_) == 0) { \
-            cur->val = val_; \
+        if (strcmp(cur_->key, key_) == 0) { \
+            cur_->val = val_; \
             break; \
         } \
     } \
@@ -124,14 +124,15 @@ struct { \
     memset((ht)->buckets, 0, (ht)->cap * sizeof(*((ht)->buckets))); \
     (ht)->size = 0; \
     for (size_t i = 0; i < old_cap; ++i) { \
-        typeof(*((ht)->buckets)) *cur = old_buckets + i; \
-         if (cur->state == HT_BUCKET_STATE_DELETED) free(cur->key); \
-         else if (cur->state == HT_BUCKET_STATE_OCCUPIED) { \
-            const char *cur_key = cur->key; \
-            const typeof((ht)->buckets->val) *cur_val = &cur->val; \
-            __ht_unsafe_insert(ht, cur_key, *cur_val); \
+        typeof(*((ht)->buckets)) *cur_ = old_buckets + i; \
+         if (cur_->state == HT_BUCKET_STATE_DELETED) free(cur_->key); \
+         else if (cur_->state == HT_BUCKET_STATE_OCCUPIED) { \
+            const char *cur__key = cur_->key; \
+            const typeof((ht)->buckets->val) *cur__val = &cur_->val; \
+            __ht_unsafe_insert(ht, cur__key, *cur__val); \
          } \
     } \
+    free(old_buckets); \
 } while (0) 
 
 
@@ -148,15 +149,12 @@ __ht_get_internal( \
 #define ht_remove(ht, key_) do { \
     size_t idx = __ht_hash(key_); \
     for (size_t i = 0; i < (ht)->cap; ++i) { \
-        typeof(((ht)->buckets)) cur = (ht)->buckets + (i + idx) & ((ht)->cap - 1); \
-        if (cur->state == HT_BUCKET_STATE_DELETED && strcmp(cur->key, key_) == 0) break; \
+        typeof(((ht)->buckets)) cur_ = (ht)->buckets + ((i + idx) & ((ht)->cap - 1)); \
+        if (cur_->state == HT_BUCKET_STATE_DELETED && strcmp(cur_->key, key_) == 0) break; \
         else continue; \
-        if (cur->state == HT_BUCKET_STATE_EMPTY) { \
-            continue; \
-        } \
-        if (strcmp(cur->key, key_) == 0) { \
+        if (strcmp(cur_->key, key_) == 0) { \
             (ht)->size -= 1; \
-            cur->state = HT_BUCKET_STATE_DELETED; \
+            cur_->state = HT_BUCKET_STATE_DELETED; \
             break; \
         } \
     } \
@@ -164,16 +162,16 @@ __ht_get_internal( \
 
 #define ht_deinit(ht) do { \
     for (size_t i = 0; i < (ht)->cap; ++i) { \
-        typeof((ht)->buckets) cur = (ht)->buckets + i; \
-        switch (cur->state) { \
+        typeof((ht)->buckets) cur_ = (ht)->buckets + i; \
+        switch (cur_->state) { \
             case HT_BUCKET_STATE_EMPTY: break; \
             case HT_BUCKET_STATE_DELETED: { \
-                free(cur->key); \
+                free(cur_->key); \
                 break; \
             } \
             case HT_BUCKET_STATE_OCCUPIED: { \
-                free(cur->key); \
-                if ((ht)->deinit) (ht)->deinit(&cur->val); \
+                free(cur_->key); \
+                if ((ht)->deinit) (ht)->deinit(&cur_->val); \
                 break; \
             } \
         } \

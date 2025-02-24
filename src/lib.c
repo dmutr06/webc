@@ -64,16 +64,20 @@ WebcHeaders webc_headers_from_str(char *raw) {
     WebcHeaders headers;
     ht_init(&headers, NULL);
 
-    char *token = strtok(raw, "\r\n");
+    char *cur = raw;
 
-
-    while (token != NULL) {
-        char *delim = strstr(token, ": ");
+    while (cur) {
+        char *next = strstr(cur, "\r\n");
+        if (next) {
+            *next = '\0';
+            next += 2;
+        }
+        char *delim = strstr(cur, ": ");
         if (!delim) continue;
         *delim = '\0';
 
-        ht_insert(&headers, token, delim + 2);
-        token = strtok(NULL, "\r\n");
+        ht_insert(&headers, cur, delim + 2);
+        cur = next;
     }
 
     return headers;

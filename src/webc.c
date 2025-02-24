@@ -39,10 +39,11 @@ void webc_init(void) {
     webc_handlers_init(&webc.handlers);
 }
 
-void webc_start(const int port) {
+void webc_start(int port) {
     #define DEFER(code) exit_code = code; goto defer;
 
     int exit_code = EXIT_SUCCESS;
+
     struct sockaddr_in address = {0};
 
     address.sin_family = AF_INET;
@@ -62,22 +63,25 @@ void webc_start(const int port) {
     }
 
     while (1) {
-        int new_socket = accept(webc.fd, (struct sockaddr *)&address, &addrlen);
+        struct sockaddr_in client_addr;
+        socklen_t client_addrlen = 0;
+        int client_fd = accept(webc.fd, (struct sockaddr *)&client_addr, &client_addrlen);
 
-        if (new_socket < 0) {
+        if (client_fd < 0) {
             perror("accept failed");
             continue;
         }
 
-        char *raw_req = malloc(__WEBC_REQ_BUF_SIZE);
-        ssize_t valread = read(new_socket, raw_req, __WEBC_REQ_BUF_SIZE - 1);
+        char raw_req[__WEBC_REQ_BUF_SIZE + 1];
+        memset(raw_req, '\0', sizeof(raw_req));
+        ssize_t valread = read(client_fd, raw_req, __WEBC_REQ_BUF_SIZE);
         (void)valread;
         
         WebcRequest req;
         webc_request_from_str(raw_req, &req);
 
         WebcResponse res;
-        webc_response_init(new_socket, &res);
+        webc_response_init(client_fd, &res);
         
         bool accepted = false;
 
@@ -93,12 +97,11 @@ void webc_start(const int port) {
             webc_response_send(&res);
         }
 
+        shutdown(client_fd, SHUT_RDWR); 
+        close(client_fd);
+
         webc_request_deinit(&req);
         webc_response_deinit(&res);
-
-        free(raw_req);
-    
-        close(new_socket);
     }
     
     defer:
